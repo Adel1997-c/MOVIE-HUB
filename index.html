@@ -1,0 +1,145 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movie Hub 🎬</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white font-sans">
+
+  <!-- Header -->
+  <header class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 p-4 bg-zinc-900 shadow-md sticky top-0 z-50">
+    <h1 class="text-2xl font-bold text-red-500">🎬 Movie Hub</h1>
+    <div class="flex items-center gap-2">
+      <input id="search" type="text" placeholder="Search movies..." class="px-4 py-1 rounded bg-zinc-800 text-white w-60 focus:outline-none">
+      <select id="genre-filter" class="px-3 py-1 bg-zinc-800 text-white rounded">
+        <option value="">All Genres</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section id="hero" class="relative h-[60vh] bg-cover bg-center text-white flex items-end p-6">
+    <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
+    <div class="z-10 max-w-2xl">
+      <h2 id="hero-title" class="text-4xl font-bold mb-2"></h2>
+      <p id="hero-desc" class="text-sm text-gray-300 mb-4"></p>
+      <a id="hero-link" href="#">
+        <button class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">▶️ Watch Trailer</button>
+      </a>
+    </div>
+  </section>
+
+  <!-- Movie Grid -->
+  <section class="px-6 py-6">
+    <h3 class="text-xl font-semibold mb-4">🎞️ Browse Movies</h3>
+    <div id="movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <!-- Movie cards will load here -->
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-zinc-900 text-center text-sm text-gray-400 py-6 mt-12">
+    <p>© 2025 Movie Hub. All rights reserved.</p>
+  </footer>
+
+  <script>
+    const API_KEY = "24cdf2045e4dd3524a154ebce928ec2b";
+    const IMG_BASE = "https://image.tmdb.org/t/p/w500";
+
+    let currentPage = 1;
+    let isLoading = false;
+    let currentGenre = "";
+    let searchQuery = "";
+
+    const movieGrid = document.getElementById("movie-grid");
+    const genreFilter = document.getElementById("genre-filter");
+    const searchInput = document.getElementById("search");
+
+    async function fetchGenres() {
+      const res = await fetch(`https://api.themoviedb.org/3/genre/movie/list?api_key=${API_KEY}`);
+      const data = await res.json();
+      data.genres.forEach(g => {
+        const option = document.createElement("option");
+        option.value = g.id;
+        option.textContent = g.name;
+        genreFilter.appendChild(option);
+      });
+    }
+
+    async function fetchMovies(page = 1) {
+      isLoading = true;
+      let url = "";
+
+      if (searchQuery.length > 0) {
+        url = `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchQuery)}&page=${page}`;
+      } else if (currentGenre) {
+        url = `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_genres=${currentGenre}&page=${page}`;
+      } else {
+        url = `https://api.themoviedb.org/3/trending/movie/week?api_key=${API_KEY}&page=${page}`;
+      }
+
+      const res = await fetch(url);
+      const data = await res.json();
+      const movies = data.results.filter(m => m.poster_path);
+
+      // Hero section on first page only
+      if (page === 1 && movies.length > 0) {
+        const heroMovie = movies[0];
+        document.getElementById("hero").style.backgroundImage = `url(${IMG_BASE + heroMovie.backdrop_path})`;
+        document.getElementById("hero-title").textContent = heroMovie.title;
+        document.getElementById("hero-desc").textContent = heroMovie.overview.slice(0, 150) + "...";
+        document.getElementById("hero-link").href = `movie.html?id=${heroMovie.id}`;
+      }
+
+      movies.forEach(movie => {
+        const card = document.createElement("div");
+        card.className = "bg-zinc-800 rounded overflow-hidden hover:scale-105 transition";
+        card.innerHTML = `
+          <img src="${IMG_BASE + movie.poster_path}" class="w-full h-64 object-cover" alt="${movie.title}">
+          <div class="p-2">
+            <h4 class="text-sm font-bold">${movie.title}</h4>
+            <p class="text-xs text-gray-400">⭐ ${movie.vote_average}</p>
+            <a href="movie.html?id=${movie.id}" class="text-blue-400 text-xs hover:underline">More Info →</a>
+          </div>
+        `;
+        movieGrid.appendChild(card);
+      });
+
+      isLoading = false;
+    }
+
+    // Infinite Scroll
+    window.addEventListener("scroll", () => {
+      if (
+        window.innerHeight + window.scrollY >= document.body.offsetHeight - 100 &&
+        !isLoading
+      ) {
+        currentPage++;
+        fetchMovies(currentPage);
+      }
+    });
+
+    // Genre Filter
+    genreFilter.addEventListener("change", () => {
+      currentGenre = genreFilter.value;
+      currentPage = 1;
+      movieGrid.innerHTML = "";
+      fetchMovies(currentPage);
+    });
+
+    // Search
+    searchInput.addEventListener("input", () => {
+      searchQuery = searchInput.value;
+      currentPage = 1;
+      movieGrid.innerHTML = "";
+      fetchMovies(currentPage);
+    });
+
+    // Init
+    fetchGenres();
+    fetchMovies(currentPage);
+  </script>
+</body>
+</html>
